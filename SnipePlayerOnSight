@@ -1,0 +1,100 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class SnipePlayerOnSight : MonoBehaviour
+{
+    //Takes a dynamic storage object, and checks each object in storage for viable targets.  Shoots whichever one is visible and closest.
+    //replaced with a pair of scripts: one that finds a target and rotates toward it, and one that fires bullets at the target.
+    //Depricated
+    [SerializeField] float originOffset = .2f;
+    [SerializeField] float shootInterval = .5f;
+    private List<Transform> playerObjectList = new List<Transform>();
+    private Transform playerStorage;
+    private PlayerObjectList objectList;
+    private float timePassed = 0f;
+    void Awake()
+    {
+        playerStorage = GameObject.FindGameObjectWithTag("Player Storage").transform;
+        objectList = playerStorage.GetComponent<PlayerObjectList>();
+    }
+    void Update()
+    {
+        timePassed += Time.deltaTime;
+        AddCurrentPlayerObjectsToList();
+        RemoveObjectsNotVisible();
+        if (playerObjectList.Count == 0) return;
+        Transform closestObject = FindClosestObject();
+        FaceClosest(closestObject);
+        if (timePassed < shootInterval) return;
+        shootInterval = 0f;
+        ShootAtClosest(closestObject);
+    }
+    private void AddCurrentPlayerObjectsToList()
+    {
+        playerObjectList = objectList.ReadList();
+    }
+    private void RemoveObjectsNotVisible()
+    {
+        List<Transform> toBeDeleted = new List<Transform>();
+        foreach(Transform playerObject in playerObjectList) 
+        {
+            string hit = SearchForTag(playerObject);
+            if(hit != "Player" && hit != "PlayerBullet")
+            {
+                toBeDeleted.Add(playerObject);
+            }
+        }
+        foreach(Transform removedObject in toBeDeleted)
+        {
+            playerObjectList.Remove(removedObject);
+        }
+    }
+    private void FaceClosest(Transform target)
+    {
+        Vector3 direction = transform.position - target.position;
+        float rotation = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + 90f;
+        transform.rotation = Quaternion.Euler(new Vector3(0f, 0f, rotation));
+    }
+    private void ShootAtClosest(Transform target)
+    {
+        //draw line
+
+        if (target.tag == "Player")
+        {
+            target.gameObject.SetActive(false);
+        }
+        else if(target.tag == "PlayerBullet")
+        {
+            //apply bounce to bullets
+        }
+    }
+    private Transform FindClosestObject()
+    {
+        float turretX = transform.position.x;
+        float turretY = transform.position.y;
+        float distance = Mathf.Infinity;
+        Transform closest = null;
+        foreach (Transform playerObject in playerObjectList)
+        {
+            float x = playerObject.position.x;
+            float y = playerObject.position.y;
+            float newX = x - turretX;
+            float newY = y - turretY;
+            float dist = new Vector2(newX, newY).magnitude;
+            if(dist < distance)
+            {
+                distance = dist;
+                closest = playerObject;
+            }
+        }
+        return closest;
+    }
+    private string SearchForTag(Transform playerTransform)
+    {
+        Vector2 pos = new Vector2(transform.position.x, transform.position.y) + new Vector2(transform.up.x, transform.up.y) * originOffset;
+        Vector2 RaycastDirection = playerTransform.position - new Vector3(pos.x, pos.y, 0f);
+        RaycastHit2D hit = Physics2D.Raycast(pos, RaycastDirection, Mathf.Infinity);
+        return hit.transform.tag;
+    }
+}
